@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Research Agent</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .loading {
+            display: none;
+        }
+        .loading.active {
+            display: block;
+        }
+        .result {
+            display: none;
+        }
+        .result.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Financial Research Agent</h1>
+        
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <div class="mb-6">
+                <label for="query" class="block text-sm font-medium text-gray-700 mb-2">Enter your financial research query:</label>
+                <textarea id="query" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Example: Write up an analysis of Apple Inc.'s most recent quarter."></textarea>
+            </div>
+            
+            <button onclick="analyze()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Analyze
+            </button>
+        </div>
+
+        <div id="loading" class="loading mt-8">
+            <div class="flex items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span class="ml-3 text-gray-700">Analyzing your query...</span>
+            </div>
+        </div>
+
+        <div id="result" class="result mt-8">
+            <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Analysis Results</h2>
+                <div id="progress-content" class="mb-4"></div>
+                <div id="report-content" class="prose max-w-none whitespace-pre-wrap"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function analyze() {
+            const query = document.getElementById('query').value;
+            if (!query) {
+                alert('Please enter a query');
+                return;
+            }
+
+            // Show loading, hide result
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('result').classList.remove('active');
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query }),
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Display progress updates
+                    const progressHtml = data.results
+                        .map(result => `
+                            <div class="mb-2">
+                                <span class="font-medium">${result.name}:</span>
+                                <span>${result.message}</span>
+                                ${result.is_done ? '✓' : ''}
+                            </div>
+                        `)
+                        .join('');
+                    document.getElementById('progress-content').innerHTML = progressHtml;
+                    
+                    // Display the final report
+                    if (data.report) {
+                        document.getElementById('report-content').innerText = data.report;
+                    }
+                    
+                    document.getElementById('result').classList.add('active');
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html> 

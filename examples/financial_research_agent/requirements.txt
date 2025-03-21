@@ -1,0 +1,2 @@
+flask[async]==3.0.0
+asgiref==3.7.2 

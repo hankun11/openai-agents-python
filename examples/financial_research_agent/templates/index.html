@@ -18,40 +18,133 @@
         .result.active {
             display: block;
         }
+        .agent-item {
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+        .agent-item:hover {
+            background-color: #f3f4f6;
+        }
+        .agent-item.active {
+            background-color: #e5e7eb;
+        }
+        .agent-content {
+            display: none;
+        }
+        .agent-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Financial Research Agent</h1>
         
-        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
             <div class="mb-6">
                 <label for="query" class="block text-sm font-medium text-gray-700 mb-2">Enter your financial research query:</label>
                 <textarea id="query" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Example: Write up an analysis of Apple Inc.'s most recent quarter."></textarea>
+                <button onclick="analyze()" class="mt-4 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Analyze
+                </button>
             </div>
-            
-            <button onclick="analyze()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                Analyze
-            </button>
-        </div>
 
-        <div id="loading" class="loading mt-8">
-            <div class="flex items-center justify-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <span class="ml-3 text-gray-700">Analyzing your query...</span>
+            <div id="loading" class="loading">
+                <div class="flex items-center justify-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <span class="ml-3 text-gray-700">Analyzing your query...</span>
+                </div>
             </div>
-        </div>
 
-        <div id="result" class="result mt-8">
-            <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-semibold mb-4 text-gray-800">Analysis Results</h2>
-                <div id="progress-content" class="mb-4"></div>
-                <div id="report-content" class="prose max-w-none whitespace-pre-wrap"></div>
+            <div id="result" class="result">
+                <div class="flex gap-4">
+                    <!-- Left sidebar with agent list -->
+                    <div class="w-1/3 bg-gray-50 rounded-lg p-4">
+                        <h2 class="text-lg font-semibold mb-4">Agents</h2>
+                        <div id="agent-list" class="space-y-2"></div>
+                    </div>
+                    
+                    <!-- Right content area -->
+                    <div class="w-2/3 bg-white rounded-lg p-4">
+                        <div id="agent-content" class="prose max-w-none">
+                            <p class="text-gray-500">Select an agent to view details</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        let currentAgentData = null;
+        
+        function showAgentDetails(agentName) {
+            if (!currentAgentData || !currentAgentData.agent_details) return;
+            
+            // Update active state in sidebar
+            document.querySelectorAll('.agent-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-agent="${agentName}"]`).classList.add('active');
+            
+            // Show agent details
+            const agentDetails = currentAgentData.agent_details[agentName];
+            let contentHtml = `
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">${agentName}</h3>
+                    <div class="flex items-center">
+                        <span class="inline-block w-2 h-2 rounded-full ${
+                            agentDetails.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
+                        } mr-2"></span>
+                        <span class="text-sm text-gray-600">${agentDetails.status}</span>
+                    </div>
+                </div>
+            `;
+
+            // Show input if available
+            if (agentDetails.input) {
+                contentHtml += `
+                    <div class="mb-4">
+                        <h4 class="font-medium mb-2">Input</h4>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <pre class="whitespace-pre-wrap">${JSON.stringify(agentDetails.input, null, 2)}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Show output if available
+            if (agentDetails.output) {
+                contentHtml += `
+                    <div class="mb-4">
+                        <h4 class="font-medium mb-2">Output</h4>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <pre class="whitespace-pre-wrap">${agentDetails.output}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Show additional details if available
+            if (agentDetails.details && agentDetails.details.length > 0) {
+                contentHtml += `
+                    <div class="mb-4">
+                        <h4 class="font-medium mb-2">Details</h4>
+                        ${agentDetails.details.map(detail => `
+                            <div class="bg-gray-50 p-4 rounded-lg mb-2">
+                                <div class="font-medium mb-1">${detail.type}</div>
+                                <pre class="whitespace-pre-wrap">${detail.content}</pre>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            document.getElementById('agent-content').innerHTML = contentHtml;
+        }
+        
         async function analyze() {
             const query = document.getElementById('query').value;
             if (!query) {
@@ -59,9 +152,11 @@
                 return;
             }
 
-            // Show loading, hide result
+            // Reset and show loading state
             document.getElementById('loading').classList.add('active');
             document.getElementById('result').classList.remove('active');
+            document.getElementById('agent-list').innerHTML = '';
+            document.getElementById('agent-content').innerHTML = '<p class="text-gray-500">Processing...</p>';
 
             try {
                 const response = await fetch('/analyze', {
@@ -75,21 +170,28 @@
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    // Display progress updates
-                    const progressHtml = data.results
-                        .map(result => `
-                            <div class="mb-2">
-                                <span class="font-medium">${result.name}:</span>
-                                <span>${result.message}</span>
-                                ${result.is_done ? '✓' : ''}
+                    currentAgentData = data;
+                    
+                    // Create agent list
+                    const agentListHtml = Object.entries(data.agent_details)
+                        .map(([name, details]) => `
+                            <div class="agent-item" data-agent="${name}" onclick="showAgentDetails('${name}')">
+                                <div class="flex items-center">
+                                    <span class="inline-block w-2 h-2 rounded-full ${
+                                        details.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
+                                    } mr-2"></span>
+                                    <span>${name}</span>
+                                </div>
                             </div>
                         `)
                         .join('');
-                    document.getElementById('progress-content').innerHTML = progressHtml;
                     
-                    // Display the final report
-                    if (data.report) {
-                        document.getElementById('report-content').innerText = data.report;
+                    document.getElementById('agent-list').innerHTML = agentListHtml;
+                    
+                    // Show the first agent by default
+                    const firstAgent = Object.keys(data.agent_details)[0];
+                    if (firstAgent) {
+                        showAgentDetails(firstAgent);
                     }
                     
                     document.getElementById('result').classList.add('active');

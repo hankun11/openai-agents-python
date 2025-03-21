@@ -43,23 +43,24 @@ class FinancialResearchManager:
                 hide_checkmark=True,
             )
             self.printer.update_item("start", "Starting financial research...", is_done=True)
-            search_plan = await self._plan_searches(query)
-            search_results = await self._perform_searches(search_plan)
-            report = await self._write_report(query, search_results)
-            verification = await self._verify_report(report)
+            
+            # Store results from each agent
+            self._planner_result = await self._plan_searches(query)
+            self._search_results = await self._perform_searches(self._planner_result)
+            self._writer_result = await self._write_report(query, self._search_results)
+            self._verifier_result = await self._verify_report(self._writer_result)
 
-            final_report = f"Report summary\n\n{report.short_summary}"
+            final_report = f"Report summary\n\n{self._writer_result.short_summary}"
             self.printer.update_item("final_report", final_report, is_done=True)
-
             self.printer.end()
 
         # Print to stdout
         print("\n\n=====REPORT=====\n\n")
-        print(f"Report:\n{report.markdown_report}")
+        print(f"Report:\n{self._writer_result.markdown_report}")
         print("\n\n=====FOLLOW UP QUESTIONS=====\n\n")
-        print("\n".join(report.follow_up_questions))
+        print("\n".join(self._writer_result.follow_up_questions))
         print("\n\n=====VERIFICATION=====\n\n")
-        print(verification)
+        print(self._verifier_result)
 
     async def _plan_searches(self, query: str) -> FinancialSearchPlan:
         self.printer.update_item("planning", "Planning searches...")
